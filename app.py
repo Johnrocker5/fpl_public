@@ -4,6 +4,7 @@ import teams
 import players
 import my_team
 import vml
+import aas
 import seaborn
 import matplotlib
 import pandas
@@ -14,7 +15,7 @@ from understatapi import UnderstatClient
 
 
 pages = {'Home': home, 'Team Data': teams, 'Player Data': players, 'My Team': my_team,
-         'Victor Moses Lawn': vml}
+         'Victor Moses Lawn': vml, 'Team AAweSome 2022': aas}
 
 # Add sidebar to to app
 
