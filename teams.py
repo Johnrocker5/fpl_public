@@ -90,7 +90,7 @@ def get_teams():
 
 ###################################################
 
-@st.cache
+@st.cache(allow_output_mutation=True)
 def fetch_fixtures():
     url = 'https://fantasy.premierleague.com/api/fixtures/'
     response = requests.get(url).json()
@@ -100,6 +100,8 @@ def fetch_fixtures():
     homeGoals = pd.array(df['team_h_score'])
     awayGoals = pd.array(df['team_a_score'])
     teams = get_teams()
+    home_difficulty = pd.array(df['team_h_difficulty'])
+    away_difficulty = pd.array(df['team_a_difficulty'])
     homeAttack = []
     homeDefence = []
     homeTeam = []
@@ -144,7 +146,8 @@ def fetch_fixtures():
     fixtures = {'Game Week': gameWeek, 'Finished': finished, 'Home': homeTeam, 'Away': awayTeam,
                 'Home Goals': homeGoals, 'Away Goals': awayGoals, 'Net Home Attack': homeAttack,
                 'Home Net Defence': homeDefence, 'xG (H)': xGHome, 'xGA (H)': xGAHome,
-                'xG (A)': xGAway, 'xGA (A)': xGAAway, 'Prediction (H)': xxGHome, 'Prediction (A)': xxGAway}
+                'xG (A)': xGAway, 'xGA (A)': xGAAway, 'Prediction (H)': xxGHome, 'Prediction (A)': xxGAway,
+                'Home difficulty': home_difficulty, 'Away difficulty': away_difficulty}
     df = pd.DataFrame(fixtures)
     return df
 
@@ -152,11 +155,14 @@ def fetch_fixtures():
 
 @st.cache
 def fixture_colours(str):
-    data = get_teams()
-    df = data[['short_name', 'strength']]
+    data = fetch_fdr()
+    venue = str[5]
     symbol = str[0:3]
-    df_symbol = df.loc[df['short_name'] == symbol]
-    fdr = df_symbol['strength'][df_symbol.index[0]]
+    df_symbol = data.loc[data['Symbol'] == symbol]
+    if venue == 'A':
+        fdr = df_symbol['Home'][df_symbol.index[0]]
+    if venue == 'H':
+        fdr = df_symbol['Away'][df_symbol.index[0]]
     if fdr == 5:
         color = 'red'
     if fdr == 4:
@@ -227,9 +233,30 @@ def fdr_colours(fdr):
 ############################################
 
 @st.cache(allow_output_mutation=True)
+def fetch_fdr():
+    teams = get_teams()
+    fixtures = fetch_fixtures()
+    name = pd.array(teams['name'])
+    short = pd.array(teams['short_name'])
+    home_fdr = []
+    away_fdr = []
+    for i in teams.index:
+        symbol = teams['short_name'][i]
+        home = fixtures.loc[fixtures['Home'] == symbol]
+        home_fdr.append(home['Away difficulty'][home.index[0]])
+        away = fixtures.loc[fixtures['Away'] == symbol]
+        away_fdr.append(away['Home difficulty'][away.index[0]])
+    df = pd.DataFrame({'Name': name, 'Symbol': short, 'Home': home_fdr, 'Away': away_fdr})
+    return df
+
+
+
+
+@st.cache(allow_output_mutation=True)
 def get_fdr(select='All', weeks=11):
     teams = get_teams()
     fixtures = fetch_fixtures()
+    fdrs = fetch_fdr()
     df = pd.DataFrame()
     for i in teams.index:
         team = teams['name'][i]
@@ -248,14 +275,11 @@ def get_fdr(select='All', weeks=11):
         for j in range(0, len(all_data.index)):
             home = all_data['Home'][all_data.index[j]]
             away = all_data['Away'][all_data.index[j]]
-            home_df = teams.loc[teams['short_name'] == home]
-            away_df = teams.loc[teams['short_name'] == away]
-            home_fdr = home_df['strength'][home_df.index[0]]
-            away_fdr = away_df['strength'][away_df.index[0]]
             if home == symbol:
-                df_team[df_team.columns[j+1]][0] = away_fdr
+                fdr = fdrs.loc[fdrs['Symbol'] == away]['Away'][fdrs.loc[fdrs['Symbol'] == away].index[0]]
             elif home != symbol:
-                df_team[df_team.columns[j+1]][0] = home_fdr
+                fdr = fdrs.loc[fdrs['Symbol'] == home]['Home'][fdrs.loc[fdrs['Symbol'] == home].index[0]]
+            df_team[df_team.columns[j+1]][0] = fdr
         df = pd.concat([df, df_team], ignore_index=True)
     index = get_remaining_gws()
     df1 = df[df.columns[0]]
@@ -577,6 +601,9 @@ def app():
                                     default='All', key=6)
     xGA = fixtures_pred_defence(select=teams_xGA, weeks=gws_xGA)
     st.table(xGA)
+
+
+
 
 
 
