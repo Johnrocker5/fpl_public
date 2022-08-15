@@ -33,14 +33,6 @@ def rank_col(val):
         color = 'white'
     return f'background-color: {color}'
 
-def mov_col(val):
-    if val == 0:
-        color = 'lime'
-    if val < 0:
-        color = 'red'
-    else:
-        color = 'white'
-    return f'background-color: {color}'
 
 def get_leagues(id):
     url = 'https://fantasy.premierleague.com/api/entry/' + str(id) + '/'
@@ -59,7 +51,7 @@ def get_leagues(id):
     df = pd.DataFrame({'League name': names, 'Type': type, 'Rank': rank,
                        'Previous rank': prev_rank, 'Movement': movement})
     df = df.loc[df['Rank'] > 0]
-    df = df.style.applymap(rank_col, subset=['Rank']).applymap(mov_col, subset=['Movement'])
+    df = df.style.applymap(rank_col, subset=['Rank'])
     return df
 
 
@@ -106,7 +98,7 @@ def fetch_my_team_gw_stats(id):
         url = 'https://fantasy.premierleague.com/api/entry/' + str(id) + '/event/' + str(i) + '/picks/'
         response = requests.get(url).json()
         game_week.append('GW' + str(response['entry_history']['event']))
-        points.append(response['entry_history']['points'])
+        points.append(response['entry_history']['points'] - response['entry_history']['event_transfers_cost'])
         total_points.append(response['entry_history']['total_points'])
         rank.append(response['entry_history']['rank'])
         overall_rank.append(response['entry_history']['overall_rank'])
@@ -285,6 +277,8 @@ def app():
         leagues = get_leagues(id=manager_id)
         st.table(leagues)
         st.header('Season progress')
+        st.markdown('The following section only updates after the most recent game week has been played and ' +
+                    'all bonus points have been finalised.')
         fig_1 = get_fig1(y=manager_id)
         st.subheader('Game week points')
         st.markdown("The figure below shows your game week (GW) performances against the average and the " +

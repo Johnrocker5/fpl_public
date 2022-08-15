@@ -1,4 +1,4 @@
-import numpy as np
+
 import streamlit as st
 import pandas as pd
 import requests
@@ -113,7 +113,8 @@ def get_monthly_standings(month, gameweek):
             url = 'https://fantasy.premierleague.com/api/entry/' + str(j) + '/event/' + str(i) + '/picks/'
             response = requests.get(url).json()
             if response != {'detail': 'Not found.'}:
-                points_in_gw = np.append(points_in_gw, response['entry_history']['points'])
+                points_in_gw = np.append(points_in_gw, response['entry_history']['points']
+                                         - response['entry_history']['event_transfers_cost'])
                 transfers_in_gw = np.append(transfers_in_gw, response['entry_history']['event_transfers'])
                 transfer_cost_in_gw = np.append(transfer_cost_in_gw, response['entry_history']['event_transfers_cost'])
                 chips_played_in_gw.append(response['active_chip'])
@@ -169,8 +170,9 @@ def get_overall_standings_gws(gws_back):
         url = f'https://fantasy.premierleague.com/api/entry/{i}/history/'
         response = requests.get(url).json()
         data = pd.DataFrame(response['current'])
-        df1 = data['points'].transpose()
-        points = pd.concat([points, df1], ignore_index=True)
+        df1 = data['points'] - data['event_transfers_cost']
+        points = pd.concat([points, df1], ignore_index=True, axis=1)
+    points = points.transpose()
     points = points[points.columns[::-1]]
     column_names = []
     for k in range(0, len(points.columns)):
@@ -381,11 +383,11 @@ def get_wildcard(season, gws=1):
         gws_avg = []
         vml_df = get_overall_standings_gws(gws_back=100)
         for i in data.index:
-            gameweeks = min(gws, len(vml_df.columns) - 2 - gw[i] + 1)
+            gameweeks = min(gws, len(vml_df.columns) - 2 - data['Game week'][i] + 1)
             gws_avg.append(gameweeks)
             columns = []
             fpl_avg = np.array([], dtype=int)
-            for j in range(gameweeks, gameweeks + 1):
+            for j in range(data['Game week'][i], data['Game week'][i] + gameweeks):
                 columns.append('GW' + str(j))
                 fpl_df = fetch_gw_stats(j)
                 fpl_avg = np.append(fpl_avg, fpl_df['average_entry_score'][fpl_df.index[0]])
@@ -396,7 +398,7 @@ def get_wildcard(season, gws=1):
                 points.append(vml[[columns]].mean().mean())
             elif len(columns) == 1:
                 vml_average.append(vml_df[columns].mean().mean())
-                vml = vml_df.loc[vml_df['Manager'] == manager[i]]
+                vml = vml_df.loc[vml_df['Manager'] == data['Manager'][i]]
                 points.append(vml[columns].mean().mean())
         for i in range(0, len(points)):
             if points[i] > fpl_average[i]:
@@ -439,7 +441,7 @@ def get_general_info():
         url = f'https://fantasy.premierleague.com/api/entry/{i}/history/'
         response = requests.get(url).json()
         data = pd.DataFrame(response['current'])
-        points.append(sum(data['points']))
+        points.append(sum(data['points'] - data['event_transfers_cost']))
         transfers.append(sum(data['event_transfers']))
         transfer_costs.append(sum(data['event_transfers_cost']))
         bench_points.append(sum(data['points_on_bench']))
@@ -469,7 +471,7 @@ def get_general_info():
                        'Transfers': transfers, 'Cost of transfers': transfer_costs, 'Bench points': bench_points,
                        'Chips played': chips_played})
     cm = sns.color_palette('vlag', as_cmap=True)
-    df = df.style.background_gradient(cmap=cm, subset=['Team value','Transfers', 'Cost of transfers', 'Bench points'])
+    df = df.style.background_gradient(cmap=cm, subset=['Team value', 'Transfers', 'Cost of transfers', 'Bench points'])
     return df
 
 
@@ -541,7 +543,8 @@ def app():
             st.markdown('The table below shows when different wild card chips have been played as well' +
                         ' as the average GW points earned during a select period of GWs after the wildcard '+
                         'was activated. It also indicates what the FPL average and VML average was for the ' +
-                        'GW the chip was played and whether or not the manager scored higher or lower than ' +
+                        'selected period of GWs after the chip was played and whether or not the manager scored ' +
+                        'higher or lower than ' +
                         'these two averages.')
             gameweeks_wildcard = st.slider('Select the length of GWs to be included in the average points calculations',
                                            1, 10, 5)

@@ -45,7 +45,7 @@ def get_teams():
     teams = response['teams']
     teams_df = pd.DataFrame(teams)
     df1 = teams_df[['id', 'name', 'short_name', 'strength', 'form', 'strength_overall_home',
-                    'strength_overall_away','strength_attack_home', 'strength_attack_away',
+                    'strength_overall_away', 'strength_attack_home', 'strength_attack_away',
                     'strength_defence_home', 'strength_defence_away']]
     team_data = understat.league(league='EPL').get_team_data(season='2023')
     df2 = pd.DataFrame(team_data.values())
@@ -73,7 +73,7 @@ def get_teams():
         name != 'Wolves' and name != "Nott'm Forest" and \
         name != 'Man City' and name != 'Man Utd':
             df3 = df2.loc[df2['title'] == name]
-        df4 = pd.DataFrame(df3['history'][df3.index[0]][0])
+        df4 = pd.DataFrame(df3['history'][df3.index[0]])
         xG.append(df4['xG'].mean())
         xGA.append(df4['xGA'].mean())
         home_df = df4.loc[df4['h_a'] == 'h']

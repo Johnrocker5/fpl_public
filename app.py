@@ -4,6 +4,14 @@ import teams
 import players
 import my_team
 import vml
+import seaborn
+import matplotlib
+import pandas
+import numpy
+import requests
+import datetime
+from understatapi import UnderstatClient
+
 
 pages = {'Home': home, 'Team Data': teams, 'Player Data': players, 'My Team': my_team,
          'Victor Moses Lawn': vml}
