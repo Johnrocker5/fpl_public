@@ -85,7 +85,7 @@ def chip_col(val):
     return f'background-color: {color}'
 
 @st.cache(allow_output_mutation=True)
-def get_monthly_standings(month, gameweek):
+def get_monthly_standings(month, gameweek, color):
     gw_data = get_gw_months(by='Game weeks')
     month_gws_df = gw_data.loc[gw_data['Month of deadline'] == month]
     now = datetime.datetime.now()
@@ -156,8 +156,9 @@ def get_monthly_standings(month, gameweek):
                        'Cost of transfers': transfer_costs, 'Captain points': captain_points,
                        'Bench points': bench_points, 'Chips used': chips_played})
     df = df.sort_values(by=['Points'], ignore_index=True, ascending=False)
-    cm = sns.color_palette('vlag', as_cmap=True)
-    df = df.style.background_gradient(cmap=cm, subset=df.columns[1:6]).applymap(chip_col, subset=['Chips used'])
+    if color == 'yes':
+        cm = sns.color_palette('vlag', as_cmap=True)
+        df = df.style.background_gradient(cmap=cm, subset=df.columns[1:6]).applymap(chip_col, subset=['Chips used'])
     return df
 
 @st.cache(allow_output_mutation=True)
@@ -474,6 +475,236 @@ def get_general_info():
     df = df.style.background_gradient(cmap=cm, subset=['Team value', 'Transfers', 'Cost of transfers', 'Bench points'])
     return df
 
+@st.cache(allow_output_mutation=True)
+def get_monthly_winners():
+    months = get_months_played()
+    first = []
+    second = []
+    third = []
+    fourth = []
+    finalised = []
+    gws = get_gw_months(by='Game weeks')
+    for i in months:
+        last_gw = gws.loc[gws['Month of deadline'] == i]
+        last_gw = max(last_gw['Game week'])
+        url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
+        res = requests.get(url).json()
+        data = pd.DataFrame(res['events'])
+        data = data.loc[data['finished'] == True]
+        gw_finished = max(data['id'])
+        if gw_finished >= last_gw:
+            finalised.append('Yes')
+        elif gw_finished < last_gw:
+            finalised.append('No')
+        data = get_monthly_standings(month=i, gameweek=min(last_gw, gw_finished), color='no')
+        fourth_points = data['Points'][3]
+        data = data.loc[data['Points'] >= fourth_points]
+        data = data[['Manager', 'Points']]
+        first_df = data.loc[data['Points'] == max(data['Points'])]
+        data = data.loc[data['Points'] < max(data['Points'])]
+        second_df = data.loc[data['Points'] == max(data['Points'])]
+        data = data.loc[data['Points'] < max(data['Points'])]
+        third_df = data.loc[data['Points'] == max(data['Points'])]
+        data = data.loc[data['Points'] < max(data['Points'])]
+        fourth_df = data.loc[data['Points'] == max(data['Points'])]
+        first_manager = []
+        for j in first_df.index:
+            first_manager.append(first_df['Manager'][j])
+        second_manager = []
+        for k in second_df.index:
+            second_manager.append(second_df['Manager'][k])
+        third_manager = []
+        for l in third_df.index:
+            third_manager.append(third_df['Manager'][l])
+        fourth_manager = []
+        for m in fourth_df.index:
+            fourth_manager.append(fourth_df['Manager'][m])
+        t = len(first_manager)
+        u = len(second_manager)
+        v = len(third_manager)
+        w = len(fourth_manager)
+        if t >= 4:
+            first.append(first_manager)
+            second.append('Nobody')
+            third.append('Nobody')
+            fourth.append('Nobody')
+        if t == 3:
+            first.append(first_manager)
+            second.append('Nobody')
+            third.append('Nobody')
+            fourth.append(second_manager)
+        if t == 2:
+            first.append(first_manager)
+            second.append('Nobody')
+            if u >= 2:
+                third.append(second_manager)
+                fourth.append('Nobody')
+            if u == 1:
+                third.append(second_manager[0])
+                if v > 1:
+                    fourth.append(third_manager)
+                elif v == 1:
+                    fourth.append(third_manager[0])
+        if t == 1:
+            first.append(first_manager[0])
+            if u >= 3:
+                second.append(second_manager)
+                third.append('Nobody')
+                fourth.append('Nobody')
+            if u == 2:
+                second.append(second_manager)
+                third.append('Nobody')
+                if w > 1:
+                    fourth.append(third_manager)
+                if w == 1:
+                    fourth.append(third_manager[0])
+            if u == 1:
+                second.append(second_manager[0])
+                if v >= 2:
+                    third.append(third_manager)
+                    fourth_df.append('Nobody')
+                if v == 1:
+                    third.append(third_manager[0])
+                    if w > 1:
+                        fourth.append(fourth_manager)
+                    if w == 1:
+                        fourth.append(fourth_manager[0])
+    df = pd.DataFrame({'Month': months, 'Complete?': finalised, 'First': first, 'Second': second,
+                       'Third': third, 'Fourth': fourth})
+    return df
+
+@st.cache(allow_output_mutation=True)
+def get_prize_winners():
+    data = get_monthly_winners()
+    final_data = data.loc[data['Complete?'] == "Yes"]
+    pred_data = data.loc[data['Complete?'] == 'No']
+    Manager = []
+    final = []
+    prediction = []
+    prizes = [600, 200, 100, 100]
+    if len(pred_data.index) > 0:
+        for i in pred_data.index:
+            if type(pred_data['First'][i]) == str:
+                Manager.append(pred_data['First'][i])
+                prediction.append(600)
+                final.append(0)
+            if type(pred_data['First'][i]) == list:
+                t = len(pred_data['First'][i])
+                prize = sum(prizes[0: t]) / t
+                for j in range(0, t):
+                    Manager.append(pred_data['First'][i][j])
+                    prediction.append(prize)
+                    final.append(0)
+            if pred_data['Second'][i] != 'Nobody':
+                if type(pred_data['Second'][i]) == str:
+                    Manager.append(pred_data['Second'][i])
+                    prediction.append(200)
+                    final.append(0)
+                if type(pred_data['Second'][i]) == list:
+                    t = len(pred_data['Second'][i])
+                    prize = sum(prizes[1: t+1]) / t
+                    for j in range(0, t):
+                        Manager.append(pred_data['Second'][i][j])
+                        prediction.append(prize)
+                        final.append(0)
+            if pred_data['Third'][i] != 'Nobody':
+                if type(pred_data['Third'][i]) == str:
+                    Manager.append(pred_data['Third'][i])
+                    prediction.append(100)
+                    final.append(0)
+                if type(pred_data['Third'][i]) == list:
+                    t = len(pred_data['Third'][i])
+                    prize = sum(prizes[2: t+2]) / t
+                    for j in range(0, t):
+                        Manager.append(pred_data['Third'][i][j])
+                        prediction.append(prize)
+                        final.append(0)
+            if pred_data['Fourth'][i] != 'Nobody':
+                if type(pred_data['Fourth'][i]) == str:
+                    Manager.append(pred_data['Fourth'][i])
+                    prediction.append(100)
+                    final.append(0)
+                if type(pred_data['Fourth'][i]) == list:
+                    t = len(pred_data['Fourth'][i])
+                    prize = sum(prizes[3: t+3]) / t
+                    for j in range(0, t):
+                        Manager.append(pred_data['Fourth'][i][j])
+                        prediction.append(prize)
+                        final.append(0)
+    if len(final_data.index) > 0:
+        for i in final_data.index:
+            if type(final_data['First'][i]) == str:
+                Manager.append(final_data['First'][i])
+                prediction.append(0)
+                final.append(600)
+            if type(final_data['First'][i]) == list:
+                t = len(final_data['First'][i])
+                prize = sum(prizes[0: t]) / t
+                for j in range(0, t):
+                    Manager.append(final_data['First'][i][j])
+                    prediction.append(0)
+                    final.append(prize)
+            if final_data['Second'][i] != 'Nobody':
+                if type(final_data['Second'][i]) == str:
+                    Manager.append(final_data['Second'][i])
+                    prediction.append(0)
+                    final.append(200)
+                if type(final_data['Second'][i]) == list:
+                    t = len(final_data['Second'][i])
+                    prize = sum(prizes[1: t+1]) / t
+                    for j in range(0, t):
+                        Manager.append(final_data['Second'][i][j])
+                        prediction.append(0)
+                        final.append(prize)
+            if final_data['Third'][i] != 'Nobody':
+                if type(final_data['Third'][i]) == str:
+                    Manager.append(final_data['Third'][i])
+                    prediction.append(0)
+                    final.append(100)
+                if type(final_data['Third'][i]) == list:
+                    t = len(final_data['Third'][i])
+                    prize = sum(prizes[2: t+2]) / t
+                    for j in range(0, t):
+                        Manager.append(final_data['Third'][i][j])
+                        prediction.append(0)
+                        final.append(prize)
+            if final_data['Fourth'][i] != 'Nobody':
+                if type(final_data['Fourth'][i]) == str:
+                    Manager.append(final_data['Fourth'][i])
+                    prediction.append(0)
+                    final.append(100)
+                if type(final_data['Fourth'][i]) == list:
+                    t = len(final_data['Fourth'][i])
+                    prize = sum(prizes[3: t+3]) / t
+                    for j in range(0, t):
+                        Manager.append(final_data['Fourth'][i][j])
+                        prediction.append(0)
+                        final.append(prize)
+    final = np.array(final)
+    prediction = np.array(prediction)
+    final = final.astype(int)
+    prediction = prediction.astype(int)
+    total = np.array(final) + np.array(prediction)
+    total = total.astype(int)
+    df = pd.DataFrame({'Manager': Manager, 'Total': total, 'Finalised': final, 'Prediction': prediction})
+    managers = pd.array(df["Manager"].drop_duplicates())
+    fin = []
+    pred = []
+    tot = []
+    for i in managers:
+        man_df = df.loc[df['Manager'] == i]
+        tot.append(sum(man_df['Total']))
+        fin.append(sum(man_df['Finalised']))
+        pred.append(sum(man_df['Prediction']))
+    df = pd.DataFrame({'Manager': managers, 'Total': tot, 'Finalised': fin, 'Prediction': pred})
+    df = df.sort_values(by=['Total'], ignore_index=True, ascending=False)
+    cm = sns.color_palette('vlag', as_cmap=True)
+    df = df.style.background_gradient(cmap=cm, subset=['Total'])
+    return df
+
+
+
+
 
 
 
@@ -500,7 +731,7 @@ def app():
         month_gws = st.slider(f'Select which game weeks to include in the month of {months_standings}:'
                               , int(min(gws_monthly_standings)), int(max(gws_monthly_standings)),
                               int(max(gws_monthly_standings)))
-        standings = get_monthly_standings(month=months_standings, gameweek=month_gws)
+        standings = get_monthly_standings(month=months_standings, gameweek=month_gws, color='yes')
         st.table(standings)
         st.header('Monthly game weeks')
         st.markdown('The table below shows all GWs and the month which they fall under based on ' +
@@ -567,6 +798,15 @@ def app():
                         'FPL average and VML ' + 'average was for the GW the chip was played and ' +
                         'whether or not the manager scored higher' + ' or lower than these two averages.')
             st.table(freehit_df)
+        st.header('Winnings')
+        st.subheader('Monthly winners')
+        st.markdown('The table below shows the monthly prize winners for each month.')
+        winners = get_monthly_winners()
+        st.table(winners)
+        st.subheader('Total winnings')
+        st.markdown('The table below shows the total winnings of all monthly prize winners.')
+        total_winnings = get_prize_winners()
+        st.table(total_winnings)
 
 
 
