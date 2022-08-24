@@ -397,15 +397,10 @@ def get_wildcard(season, gws=1):
                 columns.append('GW' + str(j))
                 fpl_df = fetch_gw_stats(j)
                 fpl_avg = np.append(fpl_avg, fpl_df['average_entry_score'][fpl_df.index[0]])
-            fpl_average.append(int(fpl_avg.mean()))
-            if len(columns) > 1:
-                vml_average.append(vml_df[[columns]].mean().mean())
-                vml = vml_df.loc[vml_df['Manager'] == manager[i]]
-                points.append(vml[[columns]].mean().mean())
-            elif len(columns) == 1:
-                vml_average.append(vml_df[columns].mean().mean())
-                vml = vml_df.loc[vml_df['Manager'] == data['Manager'][i]]
-                points.append(vml[columns].mean().mean())
+            fpl_average.append((fpl_avg.mean()))
+            vml_average.append(vml_df[columns].mean().mean())
+            vml = vml_df.loc[vml_df['Manager'] == manager[i]]
+            points.append(vml[columns].mean().mean())
         for i in range(0, len(points)):
             if points[i] > fpl_average[i]:
                 fpl_ind.append('True')
