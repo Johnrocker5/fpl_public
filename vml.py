@@ -399,7 +399,7 @@ def get_wildcard(season, gws=1):
                 fpl_avg = np.append(fpl_avg, fpl_df['average_entry_score'][fpl_df.index[0]])
             fpl_average.append((fpl_avg.mean()))
             vml_average.append(vml_df[columns].mean().mean())
-            vml = vml_df.loc[vml_df['Manager'] == manager[i]]
+            vml = vml_df.loc[vml_df['Manager'] == data['Manager'][i]]
             points.append(vml[columns].mean().mean())
         for i in range(0, len(points)):
             if points[i] > fpl_average[i]:
