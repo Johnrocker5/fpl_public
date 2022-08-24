@@ -235,6 +235,10 @@ def get_fig5(y):
     ax5.set_ylim(ymax=max_pts*2 + 5)
     ax5.set_xlabel('Game week')
     ax5.set_ylabel('Captain points')
+    rects = ax5.patches
+    for rect in rects:
+        height = rect.get_height()
+        ax5.text(rect.get_x() + rect.get_width() / 2, height + 1, height, ha='center', va='bottom', size=10)
     return fig5
 
 def get_fig6(y):
