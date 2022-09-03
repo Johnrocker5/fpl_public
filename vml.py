@@ -483,25 +483,29 @@ def get_monthly_winners():
     third = []
     fourth = []
     finalised = []
+    mon = []
     gws = get_gw_months(by='Game weeks')
     for i in months:
-        last_gw = gws.loc[gws['Month of deadline'] == i]
-        last_gw = max(last_gw['Game week'])
+        gw_data = gws.loc[gws['Month of deadline'] == i]
+        last_gw = max(gw_data['Game week'])
+        first_gw = min(gw_data['Game week'])
         url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
         res = requests.get(url).json()
         data = pd.DataFrame(res['events'])
         data = data.loc[data['finished'] == True]
         gw_finished = max(data['id'])
-        if gw_finished >= last_gw:
-            finalised.append('Yes')
-        elif gw_finished < last_gw:
-            finalised.append('No')
-        data = get_monthly_standings(month=i, gameweek=min(last_gw, gw_finished), color='no')
-        first.append(data['Manager'][0])
-        second.append(data['Manager'][1])
-        third.append(data['Manager'][2])
-        fourth.append(data['Manager'][3])
-    df = pd.DataFrame({'Month': months, 'Complete?': finalised, 'First': first, 'Second': second,
+        if gw_finished >= first_gw:
+            if gw_finished >= last_gw:
+                finalised.append('Yes')
+            elif gw_finished < last_gw:
+                finalised.append('No')
+            data = get_monthly_standings(month=i, gameweek=min(last_gw, gw_finished), color='no')
+            mon.append(i)
+            first.append(data['Manager'][0])
+            second.append(data['Manager'][1])
+            third.append(data['Manager'][2])
+            fourth.append(data['Manager'][3])
+    df = pd.DataFrame({'Month': mon, 'Complete?': finalised, 'First': first, 'Second': second,
                        'Third': third, 'Fourth': fourth})
     return df
 
