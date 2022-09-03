@@ -533,10 +533,10 @@ def get_prize_winners():
             final.append(0)
     if len(final_data.index) > 0:
         for i in final_data.index:
-            manager.append(pred_data['First'][i])
-            manager.append(pred_data['Second'][i])
-            manager.append(pred_data['Third'][i])
-            manager.append(pred_data['Fourth'][i])
+            manager.append(final_data['First'][i])
+            manager.append(final_data['Second'][i])
+            manager.append(final_data['Third'][i])
+            manager.append(final_data['Fourth'][i])
             prediction.append(0)
             prediction.append(0)
             prediction.append(0)
